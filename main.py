@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import Optional
 import uvicorn
 import openai
+from openai import OpenAI
 import os
 
 app = FastAPI()
@@ -20,15 +21,17 @@ app.add_middleware(
 
 # Load OpenAI API key from environment variable
 openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 class RashifalRequest(BaseModel):
     dob: str
     time: Optional[str] = None
     location: Optional[str] = None
+    
 
 async def query_openai(prompt: str) -> str:
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are an expert astrologer providing spiritual and astrological guidance."},
@@ -37,9 +40,10 @@ async def query_openai(prompt: str) -> str:
             temperature=0.7,
             max_tokens=500
         )
-        return response.choices[0].message['content'].strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         return f"Error from OpenAI: {str(e)}"
+
 
 @app.post("/upload/palm")
 async def upload_palm(file: UploadFile = File(...)):
