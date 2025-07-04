@@ -1,6 +1,6 @@
 # JyotishAI Backend (FastAPI)
 
-This is the backend service for the JyotishAI mobile app.
+This is the backend service for the JyotishAI mobile app..
 
 ## Endpoints
 
