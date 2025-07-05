@@ -7,7 +7,10 @@ import openai
 import os
 import base64
 import logging
+from fastapi import HTTPException
+import json
 
+USER_DB = "users.json"
 # Setup logger
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("jyotishai")
@@ -132,6 +135,38 @@ async def get_muhurat(language: Optional[str] = "English"):
         "status": "success",
         "summary": result
     }
+
+class AuthRequest(BaseModel):
+    email: str
+    password: str
+
+def load_users():
+    if not os.path.exists(USER_DB):
+        return {}
+    with open(USER_DB, "r") as f:
+        return json.load(f)
+
+def save_users(users):
+    with open(USER_DB, "w") as f:
+        json.dump(users, f, indent=2)
+
+@app.post("/register")
+def register(data: AuthRequest):
+    logger.info(f"📝 Registration attempt for: {data.email}")
+    users = load_users()
+    if data.email in users:
+        raise HTTPException(status_code=400, detail="User already exists")
+    users[data.email] = data.password
+    save_users(users)
+    return {"message": "Registered successfully"}
+
+@app.post("/login")
+def login(data: AuthRequest):
+    logger.info(f"🔐 Login attempt for: {data.email}")
+    users = load_users()
+    if data.email not in users or users[data.email] != data.password:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    return {"message": "Login successful", "token": "dummy-token"}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
