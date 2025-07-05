@@ -56,7 +56,7 @@ async def query_openai_vision(image_bytes: bytes, prompt: str) -> str:
     try:
         base64_image = base64.b64encode(image_bytes).decode("utf-8")
         response = openai.chat.completions.create(
-            model="gpt-4-vision-preview",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "user",
