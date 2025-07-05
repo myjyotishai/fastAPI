@@ -1,12 +1,11 @@
-
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 import uvicorn
 import openai
-from openai import OpenAI
 import os
+import base64
 
 app = FastAPI()
 
@@ -21,18 +20,17 @@ app.add_middleware(
 
 # Load OpenAI API key from environment variable
 openai.api_key = os.getenv("OPENAI_API_KEY")
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 class RashifalRequest(BaseModel):
     dob: str
     time: Optional[str] = None
     location: Optional[str] = None
-    
+    language: Optional[str] = "English"
 
-async def query_openai(prompt: str) -> str:
+async def query_openai_text(prompt: str) -> str:
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
+        response = openai.chat.completions.create(
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": "You are an expert astrologer providing spiritual and astrological guidance."},
                 {"role": "user", "content": prompt},
@@ -44,22 +42,46 @@ async def query_openai(prompt: str) -> str:
     except Exception as e:
         return f"Error from OpenAI: {str(e)}"
 
+async def query_openai_vision(image_bytes: bytes, prompt: str) -> str:
+    try:
+        base64_image = base64.b64encode(image_bytes).decode("utf-8")
+        response = openai.chat.completions.create(
+            model="gpt-4-vision-preview",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}"
+                            }
+                        }
+                    ],
+                }
+            ],
+            max_tokens=1000,
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Error from OpenAI: {str(e)}"
 
 @app.post("/upload/palm")
-async def upload_palm(file: UploadFile = File(...)):
-    # Dummy prompt (replace with actual analysis later)
-    prompt = "Analyze the palm lines: Life line is long and curved, heart line is deep and straight, head line joins life line, fate line starts from center."
-    result = await query_openai(prompt)
+async def upload_palm(file: UploadFile = File(...), language: Optional[str] = "English"):
+    content = await file.read()
+    prompt = f"Analyze this palm image for personality, fate, and health insights. Respond in {language}."
+    result = await query_openai_vision(content, prompt)
     return {
         "status": "success",
         "summary": result
     }
 
 @app.post("/upload/face")
-async def upload_face(file: UploadFile = File(...)):
-    # Dummy prompt (replace with actual analysis later)
-    prompt = "Analyze the face: forehead is broad, eyes are sharp, chin is rounded."
-    result = await query_openai(prompt)
+async def upload_face(file: UploadFile = File(...), language: Optional[str] = "English"):
+    content = await file.read()
+    prompt = f"Analyze this face image for emotional traits, personality, health markers, and expression cues. Respond in {language}."
+    result = await query_openai_vision(content, prompt)
     return {
         "status": "success",
         "summary": result
@@ -72,18 +94,18 @@ async def get_rashifal(data: RashifalRequest):
         prompt += f" at {data.time}"
     if data.location:
         prompt += f" in {data.location}"
-    prompt += ". Include Rashi, Nakshatra, Lagna, daily prediction, weekly prediction, and a life summary."
+    prompt += f". Include Rashi, Nakshatra, Lagna, daily prediction, weekly prediction, and a life summary. Respond in {data.language}."
 
-    result = await query_openai(prompt)
+    result = await query_openai_text(prompt)
     return {
         "status": "success",
         "rashifal": result
     }
 
 @app.get("/muhurat")
-async def get_muhurat():
-    prompt = "Give today's muhurat and lucky time suggestions for business, travel, and health."
-    result = await query_openai(prompt)
+async def get_muhurat(language: Optional[str] = "English"):
+    prompt = f"Give today's muhurat and lucky time suggestions for business, travel, and health. Respond in {language}."
+    result = await query_openai_text(prompt)
     return {
         "status": "success",
         "summary": result
