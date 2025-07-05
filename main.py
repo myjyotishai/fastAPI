@@ -23,7 +23,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load OpenAI API key from environment variable
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 class RashifalRequest(BaseModel):
@@ -83,8 +82,12 @@ async def query_openai_vision(image_bytes: bytes, prompt: str) -> str:
 @app.post("/upload/palm")
 async def upload_palm(file: UploadFile = File(...), language: Optional[str] = "English"):
     content = await file.read()
-    logger.info(f"Received palm image: {file.filename}")
-    prompt = f"Analyze this palm image for personality, fate, and health insights. Respond in {language}."
+    logger.info(f"📥 Palm image received: {file.filename}")
+    prompt = (
+        f"This is a fictional palmistry-style reading task. "
+        f"Using this palm image, write a creative personality profile inspired by palm reading traditions. "
+        f"Make it fun and imaginative, suitable for entertainment purposes only. Respond in {language}."
+    )
     result = await query_openai_vision(content, prompt)
     return {
         "status": "success",
@@ -94,8 +97,11 @@ async def upload_palm(file: UploadFile = File(...), language: Optional[str] = "E
 @app.post("/upload/face")
 async def upload_face(file: UploadFile = File(...), language: Optional[str] = "English"):
     content = await file.read()
-    logger.info(f"Received face image: {file.filename}")
-    prompt = f"Analyze this face image for emotional traits, personality, health markers, and expression cues. Respond in {language}."
+    logger.info(f"📥 Face image received: {file.filename}")
+    prompt = (
+        f"Write a fictional character analysis based on this face photo, inspired by ancient face reading traditions. "
+        f"This is meant for entertainment purposes only. Make it imaginative and insightful. Respond in {language}."
+    )
     result = await query_openai_vision(content, prompt)
     return {
         "status": "success",
@@ -104,7 +110,7 @@ async def upload_face(file: UploadFile = File(...), language: Optional[str] = "E
 
 @app.post("/rashifal")
 async def get_rashifal(data: RashifalRequest):
-    logger.info(f"Rashifal request for DOB: {data.dob}, Time: {data.time}, Location: {data.location}, Language: {data.language}")
+    logger.info(f"🔮 Rashifal request: DOB={data.dob}, Time={data.time}, Location={data.location}, Lang={data.language}")
     prompt = f"Generate an astrological analysis for a person born on {data.dob}"
     if data.time:
         prompt += f" at {data.time}"
@@ -119,7 +125,7 @@ async def get_rashifal(data: RashifalRequest):
 
 @app.get("/muhurat")
 async def get_muhurat(language: Optional[str] = "English"):
-    logger.info(f"Muhurat request in language: {language}")
+    logger.info(f"📆 Muhurat request in language: {language}")
     prompt = f"Give today's muhurat and lucky time suggestions for business, travel, and health. Respond in {language}."
     result = await query_openai_text(prompt)
     return {
